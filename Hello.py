@@ -1,51 +1,86 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import streamlit as st
-from streamlit.logger import get_logger
+import openai
+import time
+import uuid
 
-LOGGER = get_logger(__name__)
+# Configuração da chave da API
+openai.api_key = "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"
 
+# Seleção do modelo preferido
+MODEL = "gpt-4-1106-preview"
 
-def run():
-    st.set_page_config(
-        page_title="Hello",
-        page_icon="👋",
+# Verifica se há uma sessão em andamento
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
+# Verifica o estado da execução do assistente
+if "run" not in st.session_state:
+    st.session_state.run = {"status": None}
+
+# Verifica as mensagens do assistente
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Contador de erros de retry
+if "retry_error" not in st.session_state:
+    st.session_state.retry_error = 0
+
+# Configuração da página
+st.set_page_config(page_title="Learn Wardley Mapping")
+
+# Sidebar
+st.sidebar.title("Learn Wardley Mapping")
+st.sidebar.divider()
+st.sidebar.markdown("Desenvolvido por [Mark Craddock](https://twitter.com/mcraddock)", unsafe_allow_html=True)
+st.sidebar.markdown("Versão Atual: 0.0.3")
+st.sidebar.markdown("Usando a API gpt-4-1106-preview")
+st.sidebar.markdown(st.session_state.session_id)
+st.sidebar.divider()
+
+# Verifica se há um assistente em andamento
+if "assistant" not in st.session_state:
+    # Substitua 'ID_DA_SUA_ASSISTENTE' pelo ID real da sua assistente existente
+    assistent_id = 'ID_DA_SUA_ASSISTENTE'
+
+    # Carrega a assistente existente
+    st.session_state.assistant = openai.ChatCompletion.retrieve(id=assistent_id)
+
+    # Cria um novo thread para esta sessão
+    st.session_state.thread = None  # Alterado para não criar um novo thread aqui, será criado durante a interação do usuário
+
+# Se a execução estiver concluída, exibe as mensagens
+elif st.session_state.run.get('status') == "completed":
+    # Recupera a lista de mensagens
+    st.session_state.messages = openai.ChatCompletion.retrieve(id=st.session_state.run['id']).get('data', [])
+
+    # Exibe as mensagens
+    for message in reversed(st.session_state.messages):
+        if message['role'] in ["user", "assistant"]:
+            with st.chat_message(message['role']):
+                st.markdown(message['content'])
+
+# Se houver uma prompt do usuário, adiciona à thread e executa o assistente
+if prompt := st.chat_input("How can I help you?"):
+    with st.chat_message('user'):
+        st.write(prompt)
+
+    # Adiciona a mensagem à thread
+    if st.session_state.thread is None:
+        st.session_state.thread = openai.Thread.create()
+
+    openai.ChatCompletion.append(
+        id=st.session_state.assistant['id'],
+        messages=[{"role": "user", "content": prompt}],
+        thread_id=st.session_state.thread['id']
     )
 
-    st.write("# Welcome to Streamlit! 👋")
-
-    st.sidebar.success("Select a demo above.")
-
-    st.markdown(
-        """
-        Streamlit is an open-source app framework built specifically for
-        Machine Learning and Data Science projects.
-        **👈 Select a demo from the sidebar** to see some examples
-        of what Streamlit can do!
-        ### Want to learn more?
-        - Check out [streamlit.io](https://streamlit.io)
-        - Jump into our [documentation](https://docs.streamlit.io)
-        - Ask a question in our [community
-          forums](https://discuss.streamlit.io)
-        ### See more complex demos
-        - Use a neural net to [analyze the Udacity Self-driving Car Image
-          Dataset](https://github.com/streamlit/demo-self-driving)
-        - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-    """
+    # Executa o assistente
+    st.session_state.run = openai.Run.create(
+        model=MODEL,
+        thread_id=st.session_state.thread['id']
     )
 
+    # Adiciona um pequeno atraso antes de verificar o status da execução
+    time.sleep(1)
+    st.rerun()
 
-if __name__ == "__main__":
-    run()
