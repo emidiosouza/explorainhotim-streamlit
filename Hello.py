@@ -39,8 +39,9 @@ st.sidebar.divider()
 
 # Verifica se há um assistente em andamento
 if "assistant" not in st.session_state:
+      openai.api_key = st.secrets["OPENAI_API_KEY"]
     # Substitua 'ID_DA_SUA_ASSISTENTE' pelo ID real da sua assistente existente
-    assistent_id = 'ID_DA_SUA_ASSISTENTE'
+    assistent_id = st.secrets["ID_DA_SUA_ASSISTENTE"]
 
     # Carrega a assistente existente
     st.session_state.assistant = openai.ChatCompletion.retrieve(id=assistent_id)
