@@ -3,9 +3,6 @@ import openai
 import time
 import uuid
 
-# Configuração da chave da API
-openai.api_key = "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"
-
 # Seleção do modelo preferido
 MODEL = "gpt-4-1106-preview"
 
